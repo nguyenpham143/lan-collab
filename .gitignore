@@ -1,0 +1,17 @@
+# build output
+bin/
+*.exe
+*.test
+*.out
+
+# files received by the client
+downloads/
+
+# editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# TLS key log written when SSLKEYLOGFILE points inside the repo
+*.keylog
