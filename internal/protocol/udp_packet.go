@@ -74,7 +74,7 @@ func (p *UDPPacket) Marshal() ([]byte, error) {
 	encodeHeader(h, wire)
 	copy(wire[HeaderSize:], p.Payload)
 
-	h.Checksum = computeCRC16(wire)
+	h.Checksum = ComputeCRC16(wire)
 	binary.BigEndian.PutUint16(wire[22:24], h.Checksum)
 	p.Header = h
 	return wire, nil
@@ -166,6 +166,6 @@ func crc16Update(crc uint16, data []byte) uint16 {
 }
 
 // ComputeCRC16 returns the CRC-16/CCITT-FALSE of data.
-func computeCRC16(data []byte) uint16 {
+func ComputeCRC16(data []byte) uint16 {
 	return crc16Update(0xFFFF, data)
 }
