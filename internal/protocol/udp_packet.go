@@ -28,113 +28,144 @@ type UDPPacket struct {
 	Payload []byte
 }
 
-// MarshalHeaderPrefix22 đóng gói 22 bytes đầu của Header (chưa gồm 2 bytes Checksum ở cuối).
-func (h *UDPHeader) MarshalHeaderPrefix22() []byte {
-	var buf [22]byte
-	magic := h.Magic
-	if magic == 0 {
-		magic = Magic
-	}
-	ver := h.Version
-	if ver == 0 {
-		ver = Version
-	}
+// Packet validation errors
+var (
+	ErrShortPacket     = errors.New("protocol: datagram shorter than the 24-byte header")
+	ErrBadMagic        = errors.New("protocol: bad magic number")
+	ErrBadVersion      = errors.New("protocol: unsupported protocol version")
+	ErrLengthMismatch  = errors.New("protocol: payload_len does not match datagram size")
+	ErrBadChecksum     = errors.New("protocol: CRC-16 checksum mismatch")
+	ErrPayloadTooLarge = errors.New("protocol: payload exceeds the maximum size")
+)
 
-	binary.BigEndian.PutUint16(buf[0:2], magic)
-	buf[2] = ver
-	buf[3] = h.MsgType
-	buf[4] = h.Flags
-	buf[5] = h.Rwnd
-	binary.BigEndian.PutUint16(buf[6:8], h.StreamID)
-	binary.BigEndian.PutUint16(buf[8:10], h.SenderID)
-	binary.BigEndian.PutUint16(buf[10:12], h.TargetID)
-	binary.BigEndian.PutUint32(buf[12:16], h.SeqNum)
-	binary.BigEndian.PutUint32(buf[16:20], h.AckNum)
-	binary.BigEndian.PutUint16(buf[20:22], h.PayloadLen)
-	return buf[:]
+// Normalized fills Magic and Version when the caller left them zero
+func (h UDPHeader) normalized() UDPHeader {
+	if h.Magic == 0 {
+		h.Magic = Magic
+	}
+	if h.Version == 0 {
+		h.Version = Version
+	}
+	return h
+}
+
+// MarshalHeaderPrefix22 đóng gói 22 bytes đầu của Header (chưa gồm 2 bytes Checksum ở cuối).
+func (h UDPHeader) MarshalHeaderPrefix22() []byte {
+	n := h.normalized()
+	n.PayloadLen = 0
+	n.Checksum = 0
+	var full [HeaderSize]byte
+	encodeHeader(n, full[:])
+	out := make([]byte, HeaderAADSize)
+	copy(out, full[:HeaderAADSize])
+	return out
 }
 
 // Marshal đóng gói toàn bộ UDPPacket thành mảng byte (24 bytes Header + Payload) kèm tính Checksum.
 func (p *UDPPacket) Marshal() ([]byte, error) {
-	if len(p.Payload) > 65535 {
-		return nil, fmt.Errorf("udp payload too large: %d", len(p.Payload))
+	if len(p.Payload) > MaxEncryptedPayload {
+		return nil, fmt.Errorf("%w: %d bytes", ErrPayloadTooLarge, len(p.Payload))
 	}
-
-	p.Header.PayloadLen = uint16(len(p.Payload))
-	prefix22 := p.Header.MarshalHeaderPrefix22()
+	h := p.Header.normalized()
+	h.PayloadLen = uint16(len(p.Payload))
+	h.Checksum = 0
 
 	wire := make([]byte, HeaderSize+len(p.Payload))
-	copy(wire[0:22], prefix22)
-	// Bytes 22..23 tạm thời bằng 0 trong lúc tính Checksum
+	encodeHeader(h, wire)
 	copy(wire[HeaderSize:], p.Payload)
 
-	p.Header.Checksum = ComputeCRC16(wire)
-	binary.BigEndian.PutUint16(wire[22:24], p.Header.Checksum)
+	h.Checksum = computeCRC16(wire)
+	binary.BigEndian.PutUint16(wire[22:24], h.Checksum)
+	p.Header = h
 	return wire, nil
 }
 
 // UnmarshalUDPPacket giải mã mảng byte nhận từ UDP Socket và kiểm tra tính hợp lệ + Checksum.
 func UnmarshalUDPPacket(raw []byte) (*UDPPacket, error) {
 	if len(raw) < HeaderSize {
-		return nil, errors.New("udp packet shorter than 24-byte header")
+		return nil, ErrShortPacket
+	}
+	h := decodeHeader(raw)
+	if h.Magic != Magic {
+		return nil, ErrBadMagic
+	}
+	if h.Version != Version {
+		return nil, ErrBadVersion
+	}
+	if int(h.PayloadLen) != len(raw)-HeaderSize {
+		return nil, ErrLengthMismatch
+	}
+	if int(h.PayloadLen) > MaxEncryptedPayload {
+		return nil, ErrPayloadTooLarge
 	}
 
-	hdr := UDPHeader{
-		Magic:      binary.BigEndian.Uint16(raw[0:2]),
-		Version:    raw[2],
-		MsgType:    raw[3],
-		Flags:      raw[4],
-		Rwnd:       raw[5],
-		StreamID:   binary.BigEndian.Uint16(raw[6:8]),
-		SenderID:   binary.BigEndian.Uint16(raw[8:10]),
-		TargetID:   binary.BigEndian.Uint16(raw[10:12]),
-		SeqNum:     binary.BigEndian.Uint32(raw[12:16]),
-		AckNum:     binary.BigEndian.Uint32(raw[16:20]),
-		PayloadLen: binary.BigEndian.Uint16(raw[20:22]),
-		Checksum:   binary.BigEndian.Uint16(raw[22:24]),
+	crc := crc16Update(0xFFFF, raw[:22])
+	crc = crc16Update(crc, []byte{0, 0})
+	crc = crc16Update(crc, raw[HeaderSize:])
+	if crc != h.Checksum {
+		return nil, ErrBadChecksum
 	}
-
-	if hdr.Magic != Magic {
-		return nil, fmt.Errorf("invalid magic: 0x%04X", hdr.Magic)
-	}
-	if hdr.Version != Version {
-		return nil, fmt.Errorf("unsupported version: %d", hdr.Version)
-	}
-	if int(hdr.PayloadLen) != len(raw)-HeaderSize {
-		return nil, fmt.Errorf("payload length mismatch: header=%d actual=%d", hdr.PayloadLen, len(raw)-HeaderSize)
-	}
-
-	// Tính lại Checksum với 2 bytes [22:24] đặt về 0 để đối chiếu
-	checkBuf := make([]byte, len(raw))
-	copy(checkBuf, raw)
-	checkBuf[22] = 0
-	checkBuf[23] = 0
-	expectedCRC := ComputeCRC16(checkBuf)
-	if hdr.Checksum != expectedCRC {
-		return nil, fmt.Errorf("checksum mismatch: got 0x%04X, expected 0x%04X", hdr.Checksum, expectedCRC)
-	}
-
-	payload := make([]byte, hdr.PayloadLen)
+	payload := make([]byte, len(raw)-HeaderSize)
 	copy(payload, raw[HeaderSize:])
-
-	return &UDPPacket{
-		Header:  hdr,
-		Payload: payload,
-	}, nil
+	return &UDPPacket{Header: h, Payload: payload}, nil
 }
 
-// ComputeCRC16 tính mã kiểm tra lỗi 16-bit (CRC-16-CCITT, đa thức 0x1021) phát hiện lỗi lật bit.
-func ComputeCRC16(data []byte) uint16 {
-	var crc uint16 = 0xFFFF
-	for _, b := range data {
-		crc ^= uint16(b) << 8
-		for i := 0; i < 8; i++ {
-			if (crc & 0x8000) != 0 {
+func encodeHeader(h UDPHeader, out []byte) {
+	binary.BigEndian.PutUint16(out[0:2], h.Magic)
+	out[2] = h.Version
+	out[3] = h.MsgType
+	out[4] = h.Flags
+	out[5] = h.Rwnd
+	binary.BigEndian.PutUint16(out[6:8], h.StreamID)
+	binary.BigEndian.PutUint16(out[8:10], h.SenderID)
+	binary.BigEndian.PutUint16(out[10:12], h.TargetID)
+	binary.BigEndian.PutUint32(out[12:16], h.SeqNum)
+	binary.BigEndian.PutUint32(out[16:20], h.AckNum)
+	binary.BigEndian.PutUint16(out[20:22], h.PayloadLen)
+	binary.BigEndian.PutUint16(out[22:24], h.Checksum)
+}
+
+func decodeHeader(b []byte) UDPHeader {
+	return UDPHeader{
+		Magic:      binary.BigEndian.Uint16(b[0:2]),
+		Version:    b[2],
+		MsgType:    b[3],
+		Flags:      b[4],
+		Rwnd:       b[5],
+		StreamID:   binary.BigEndian.Uint16(b[6:8]),
+		SenderID:   binary.BigEndian.Uint16(b[8:10]),
+		TargetID:   binary.BigEndian.Uint16(b[10:12]),
+		SeqNum:     binary.BigEndian.Uint32(b[12:16]),
+		AckNum:     binary.BigEndian.Uint32(b[16:20]),
+		PayloadLen: binary.BigEndian.Uint16(b[20:22]),
+		Checksum:   binary.BigEndian.Uint16(b[22:24]),
+	}
+}
+
+var crc16Table = func() [256]uint16 {
+	var t [256]uint16
+	for i := 0; i < 256; i++ {
+		crc := uint16(i) << 8
+		for bit := 0; bit < 8; bit++ {
+			if crc&0x8000 != 0 {
 				crc = (crc << 1) ^ 0x1021
 			} else {
 				crc <<= 1
 			}
 		}
+		t[i] = crc
+	}
+	return t
+}()
+
+func crc16Update(crc uint16, data []byte) uint16 {
+	for _, b := range data {
+		crc = (crc << 8) ^ crc16Table[byte(crc>>8)^b]
 	}
 	return crc
+}
+
+// ComputeCRC16 returns the CRC-16/CCITT-FALSE of data.
+func computeCRC16(data []byte) uint16 {
+	return crc16Update(0xFFFF, data)
 }

@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -8,7 +9,7 @@ import (
 	"io"
 )
 
-// PeerInfo lưu thông tin một người dùng đang trực tuyến trong mạng.
+// PeerInfo describes one online user in AUTH_RES and PEER_UPDATE.
 type PeerInfo struct {
 	ID      uint16 `json:"id"`
 	Name    string `json:"name"`
@@ -16,7 +17,7 @@ type PeerInfo struct {
 	UDPPort int    `json:"udp_port"`
 }
 
-// ControlMsg là bản tin JSON trao đổi trên kênh điều khiển TCP/TLS (:9000).
+// ControlMsg is the single JSON envelope used for every control-plane message.
 type ControlMsg struct {
 	Type         string     `json:"type"`
 	Version      int        `json:"version,omitempty"`
@@ -31,51 +32,82 @@ type ControlMsg struct {
 	Peers        []PeerInfo `json:"peers,omitempty"`
 }
 
-// WriteControlMsg đóng gói bản tin JSON kèm 4 bytes độ dài (Big-Endian) ở đầu.
+// ChatPayload is the plaintext JSON carried by CHAT_MSG on stream 1.
+type ChatPayload struct {
+	From string `json:"from"`
+	Text string `json:"text"`
+	TS   int64  `json:"ts"`
+}
+
+// FileDonePayload is the plaintext JSON carried by FILE_DONE on stream 1.
+type FileDonePayload struct {
+	StreamID uint16 `json:"stream_id"`
+	OK       bool   `json:"ok"`
+	Reason   string `json:"reason,omitempty"`
+}
+
+// Framing errors.
+var (
+	ErrFrameTooLarge = errors.New("protocol: control frame exceeds maximum size")
+	ErrEmptyFrame    = errors.New("protocol: empty control frame")
+	ErrMissingType   = errors.New("protocol: control message has no type")
+)
+
+// WriteControlMsg writes one frame: uint32 big-endian length N followed by N bytes of JSON.
 func WriteControlMsg(w io.Writer, msg ControlMsg) error {
-	payload, err := json.Marshal(msg)
+	body, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("marshal control msg: %w", err)
 	}
-	if len(payload) == 0 || len(payload) > MaxControlFrame {
-		return fmt.Errorf("invalid control frame length: %d", len(payload))
+	if len(body) > MaxControlFrame {
+		return ErrFrameTooLarge
 	}
 
-	var lenBuf [4]byte
-	binary.BigEndian.PutUint32(lenBuf[:], uint32(len(payload)))
-
-	if _, err := w.Write(lenBuf[:]); err != nil {
-		return fmt.Errorf("write frame length: %w", err)
-	}
-	if _, err := w.Write(payload); err != nil {
-		return fmt.Errorf("write frame payload: %w", err)
-	}
-	return nil
+	frame := make([]byte, 4+len(body))
+	binary.BigEndian.PutUint32(frame[:4], uint32(len(body)))
+	copy(frame[4:], body)
+	_, err = w.Write(frame)
+	return err
 }
 
-// ReadControlMsg đọc chính xác 4 bytes độ dài trước, kiểm tra giới hạn rồi đọc tiếp N bytes JSON.
+// ReadControlMsg reads the 4-byte big-endian length prefix N, validates the size bound,
+// and reads the following N bytes of JSON.
 func ReadControlMsg(r io.Reader) (ControlMsg, error) {
 	var lenBuf [4]byte
 	if _, err := io.ReadFull(r, lenBuf[:]); err != nil {
 		return ControlMsg{}, err
 	}
 
-	length := binary.BigEndian.Uint32(lenBuf[:])
-	if length == 0 || length > MaxControlFrame {
-		return ControlMsg{}, errors.New("control frame length out of bounds")
+	n := binary.BigEndian.Uint32(lenBuf[:])
+	if n == 0 {
+		return ControlMsg{}, ErrEmptyFrame
+	}
+	if n > MaxControlFrame {
+		return ControlMsg{}, fmt.Errorf("%w (got %d)", ErrFrameTooLarge, n)
 	}
 
-	payload := make([]byte, length)
-	if _, err := io.ReadFull(r, payload); err != nil {
-		return ControlMsg{}, fmt.Errorf("read frame payload: %w", err)
+	body := make([]byte, n)
+	if _, err := io.ReadFull(r, body); err != nil {
+		return ControlMsg{}, err
 	}
 
 	var msg ControlMsg
-	if err := json.Unmarshal(payload, &msg); err != nil {
-		return ControlMsg{}, fmt.Errorf("unmarshal control msg: %w", err)
+	if err := json.Unmarshal(body, &msg); err != nil {
+		return ControlMsg{}, fmt.Errorf("protocol: malformed control JSON: %w", err)
 	}
 	if msg.Type == "" {
-		return ControlMsg{}, errors.New("missing control message type")
+		return ControlMsg{}, ErrMissingType
 	}
 	return msg, nil
+}
+
+// MarshalJSONCompact encodes v as compact single-line JSON without HTML escaping.
+func MarshalJSONCompact(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
 }
