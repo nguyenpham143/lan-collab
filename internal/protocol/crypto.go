@@ -20,14 +20,14 @@ import (
 	"time"
 )
 
-// Crypto errors
+// Crypto errors.
 var (
 	ErrBadKeySize         = errors.New("protocol: session key must be 32 bytes (AES-256)")
 	ErrCiphertextTooShort = errors.New("protocol: encrypted payload shorter than nonce + tag")
 	ErrDecrypt            = errors.New("protocol: payload authentication failed")
 )
 
-// NewServerTLSConfig generates a self-signed TLS certificate for the server and returns a tls.Config
+// NewServerTLSConfig makes an in-memory self-signed ECDSA P-256 cert; SSLKEYLOGFILE enables Wireshark decryption.
 func NewServerTLSConfig() (*tls.Config, error) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -37,7 +37,6 @@ func NewServerTLSConfig() (*tls.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("protocol: generate certificate serial: %w", err)
 	}
-
 	now := time.Now()
 	tmpl := &x509.Certificate{
 		SerialNumber:          serial,
@@ -62,26 +61,26 @@ func NewServerTLSConfig() (*tls.Config, error) {
 	return cfg, nil
 }
 
-// CertificateFingerprint returns the SHA-256 fingerprint of the first certificate in the tls.Config
+// CertificateFingerprint returns the hex SHA-256 of cfg's certificate, for clients to pin with -pin.
 func CertificateFingerprint(cfg *tls.Config) string {
 	if cfg == nil || len(cfg.Certificates) == 0 || len(cfg.Certificates[0].Certificate) == 0 {
 		return ""
 	}
-	hash := sha256.Sum256(cfg.Certificates[0].Certificate[0])
-	return strings.ToUpper(hex.EncodeToString(hash[:]))
+	sum := sha256.Sum256(cfg.Certificates[0].Certificate[0])
+	return hex.EncodeToString(sum[:])
 }
 
-// NewClientTLSConfig returns a tls.Config that trusts the given fingerprint (SHA-256 hex string)
+// NewClientTLSConfig encrypts but does not verify the self-signed server cert; use the pinned variant to verify it.
 func NewClientTLSConfig() *tls.Config {
 	cfg := &tls.Config{
-		InsecureSkipVerify: true, // We'll verify the fingerprint manually
+		InsecureSkipVerify: true, //nolint:gosec // self-signed in-memory certificate; see NewPinnedClientTLSConfig
 		MinVersion:         tls.VersionTLS12,
 	}
 	applyKeyLog(cfg)
 	return cfg
 }
 
-// NewPinnedClientTLSConfig returns a tls.Config that verifies the server's certificate against the given fingerprint (SHA-256 hex string)
+// NewPinnedClientTLSConfig fails the handshake unless the cert's SHA-256 equals fingerprintHex (empty disables).
 func NewPinnedClientTLSConfig(fingerprintHex string) *tls.Config {
 	cfg := NewClientTLSConfig()
 	want := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(fingerprintHex)), ":", "")
@@ -101,13 +100,13 @@ func NewPinnedClientTLSConfig(fingerprintHex string) *tls.Config {
 	return cfg
 }
 
-// applyKeyLog enables TLS key logging if the environment variable SSLKEYLOGFILE is set
 func applyKeyLog(cfg *tls.Config) {
 	path := os.Getenv("SSLKEYLOGFILE")
 	if path == "" {
 		return
 	}
-	if f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600); err == nil {
+	// The file stays open for the lifetime of the process, like browsers do.
+	if f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
 		cfg.KeyLogWriter = f
 	}
 }
@@ -132,8 +131,8 @@ func newGCM(key []byte) (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
-// EncryptPayload encrypts the plaintext using AES-256-GCM with a random nonce.
-func EncryptPayload(key []byte, header22 []byte, plaintext []byte) ([]byte, error) {
+// EncryptPayload seals with AES-256-GCM, a fresh nonce per call and header bytes 0..21 as AAD: nonce||ct||tag.
+func EncryptPayload(key []byte, aad []byte, plaintext []byte) ([]byte, error) {
 	if len(plaintext) > MaxChunkSize {
 		return nil, ErrPayloadTooLarge
 	}
@@ -145,11 +144,11 @@ func EncryptPayload(key []byte, header22 []byte, plaintext []byte) ([]byte, erro
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, fmt.Errorf("protocol: generate nonce: %w", err)
 	}
-	return aead.Seal(nonce, nonce, plaintext, header22), nil
+	return aead.Seal(nonce, nonce, plaintext, aad), nil
 }
 
 // DecryptPayload verifies and opens a payload produced by EncryptPayload.
-func DecryptPayload(key []byte, header22 []byte, encrypted []byte) ([]byte, error) {
+func DecryptPayload(key []byte, aad []byte, encrypted []byte) ([]byte, error) {
 	if len(encrypted) < CryptoOverhead {
 		return nil, ErrCiphertextTooShort
 	}
@@ -157,7 +156,7 @@ func DecryptPayload(key []byte, header22 []byte, encrypted []byte) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
-	plain, err := aead.Open(nil, encrypted[:NonceSize], encrypted[NonceSize:], header22)
+	plain, err := aead.Open(nil, encrypted[:NonceSize], encrypted[NonceSize:], aad)
 	if err != nil {
 		return nil, ErrDecrypt
 	}
