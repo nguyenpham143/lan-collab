@@ -152,7 +152,7 @@ func TestUDPPacketAndCRC16(t *testing.T) {
 			t.Fatal(err)
 		}
 		hdr := protocol.UDPHeader{MsgType: protocol.MsgFileChunk, Rwnd: 64, StreamID: 2, SenderID: 7, TargetID: 9, SeqNum: 1234}
-		enc, err := protocol.EncryptPayload(key, hdr.MarshalHeaderPrefix22(), bytes.Repeat([]byte{0xAB}, 300))
+		enc, err := protocol.EncryptPayload(key, hdr.AAD(), bytes.Repeat([]byte{0xAB}, 300))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -178,7 +178,7 @@ func TestUDPPacketAndCRC16(t *testing.T) {
 	t.Run("MTU size bounds, short packets, and random garbage fuzzing", func(t *testing.T) {
 		key, _ := protocol.GenerateSessionKey()
 		hdr := protocol.UDPHeader{MsgType: protocol.MsgFileChunk, StreamID: 2, SenderID: 1, TargetID: 2, SeqNum: 1}
-		h22 := hdr.MarshalHeaderPrefix22()
+		h22 := hdr.AAD()
 
 		enc, err := protocol.EncryptPayload(key, h22, bytes.Repeat([]byte{7}, protocol.MaxChunkSize))
 		if err != nil {
@@ -233,7 +233,7 @@ func TestAESGCMAuthentication(t *testing.T) {
 	}
 	otherKey, _ := protocol.GenerateSessionKey()
 	hdr := protocol.UDPHeader{MsgType: protocol.MsgChat, Flags: protocol.FlagEOM, StreamID: 1, SenderID: 1, TargetID: 2, SeqNum: 5}
-	enc, err := protocol.EncryptPayload(key, hdr.MarshalHeaderPrefix22(), []byte("secret"))
+	enc, err := protocol.EncryptPayload(key, hdr.AAD(), []byte("secret"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,12 +253,12 @@ func TestAESGCMAuthentication(t *testing.T) {
 
 	t.Run("valid decryption and random nonce uniqueness", func(t *testing.T) {
 		ok := build(hdr, enc)
-		plain, err := protocol.DecryptPayload(key, ok.Header.MarshalHeaderPrefix22(), ok.Payload)
+		plain, err := protocol.DecryptPayload(key, ok.Header.AAD(), ok.Payload)
 		if err != nil || string(plain) != "secret" {
 			t.Fatalf("untouched packet must decrypt: plain=%q err=%v", plain, err)
 		}
 
-		enc2, _ := protocol.EncryptPayload(key, hdr.MarshalHeaderPrefix22(), []byte("secret"))
+		enc2, _ := protocol.EncryptPayload(key, hdr.AAD(), []byte("secret"))
 		if bytes.Equal(enc, enc2) {
 			t.Fatal("two encryptions of the same plaintext must differ (random nonce)")
 		}
@@ -268,14 +268,14 @@ func TestAESGCMAuthentication(t *testing.T) {
 		redirected := hdr
 		redirected.TargetID = 3
 		p := build(redirected, enc)
-		if _, err := protocol.DecryptPayload(key, p.Header.MarshalHeaderPrefix22(), p.Payload); !errors.Is(err, protocol.ErrDecrypt) {
+		if _, err := protocol.DecryptPayload(key, p.Header.AAD(), p.Payload); !errors.Is(err, protocol.ErrDecrypt) {
 			t.Fatalf("changed target_id must fail GCM authentication, got %v", err)
 		}
 
 		renumbered := hdr
 		renumbered.SeqNum = 6
 		p = build(renumbered, enc)
-		if _, err := protocol.DecryptPayload(key, p.Header.MarshalHeaderPrefix22(), p.Payload); !errors.Is(err, protocol.ErrDecrypt) {
+		if _, err := protocol.DecryptPayload(key, p.Header.AAD(), p.Payload); !errors.Is(err, protocol.ErrDecrypt) {
 			t.Fatalf("changed seq_num must fail GCM authentication, got %v", err)
 		}
 	})
@@ -284,13 +284,13 @@ func TestAESGCMAuthentication(t *testing.T) {
 		flipped := append([]byte(nil), enc...)
 		flipped[len(flipped)-1] ^= 0x80
 		p := build(hdr, flipped)
-		if _, err := protocol.DecryptPayload(key, p.Header.MarshalHeaderPrefix22(), p.Payload); !errors.Is(err, protocol.ErrDecrypt) {
+		if _, err := protocol.DecryptPayload(key, p.Header.AAD(), p.Payload); !errors.Is(err, protocol.ErrDecrypt) {
 			t.Fatalf("changed ciphertext must fail GCM authentication, got %v", err)
 		}
 	})
 
 	t.Run("rejects invalid keys, short ciphertexts, and oversized plaintexts", func(t *testing.T) {
-		h22 := hdr.MarshalHeaderPrefix22()
+		h22 := hdr.AAD()
 		if _, err := protocol.DecryptPayload(otherKey, h22, enc); !errors.Is(err, protocol.ErrDecrypt) {
 			t.Fatalf("wrong key must fail, got %v", err)
 		}
