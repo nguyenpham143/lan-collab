@@ -6,20 +6,31 @@ import (
 	"fmt"
 )
 
-// UDPHeader biểu diễn đúng 24 bytes Header cố định của gói tin UDP (Big-Endian).
+// UDPHeader is the fixed 24-byte data-plane header (big-endian):
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|         magic (0x4C43)        |  version (8b) | msg_type (8b) |
+//	|   flags (8b)  |   rwnd (8b)   |         stream_id (16b)       |
+//	|        sender_id (16b)        |         target_id (16b)       |
+//	|                         seq_num (32b)                         |
+//	|                         ack_num (32b)                         |
+//	|       payload_len (16b)       |          checksum (16b)       |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 type UDPHeader struct {
-	Magic      uint16 // Bytes 0-1:   0x4C43 ("LC")
-	Version    uint8  // Byte 2:      0x01
-	MsgType    uint8  // Byte 3:      Loại bản tin UDP
-	Flags      uint8  // Byte 4:      Bitmask (ACK, EOM, BCAST, RETRANS)
-	Rwnd       uint8  // Byte 5:      Cửa sổ nhận còn trống (Flow Control)
-	StreamID   uint16 // Bytes 6-7:   0 = Heartbeat, 1 = Chat, 2+ = File
-	SenderID   uint16 // Bytes 8-9:   ID người gửi
-	TargetID   uint16 // Bytes 10-11: ID người nhận (0 = Server, 0xFFFF = Broadcast)
-	SeqNum     uint32 // Bytes 12-15: Số thứ tự gói tin
-	AckNum     uint32 // Bytes 16-19: Số thứ tự xác nhận (Individual ACK)
-	PayloadLen uint16 // Bytes 20-21: Độ dài phần Payload theo sau
-	Checksum   uint16 // Bytes 22-23: Mã kiểm tra lỗi bit CRC-16
+	Magic      uint16
+	Version    uint8
+	MsgType    uint8
+	Flags      uint8
+	Rwnd       uint8
+	StreamID   uint16
+	SenderID   uint16
+	TargetID   uint16
+	SeqNum     uint32
+	AckNum     uint32
+	PayloadLen uint16
+	Checksum   uint16
 }
 
 // UDPPacket gồm 24-byte Header và mảng byte Payload đi kèm.
@@ -38,7 +49,7 @@ var (
 	ErrPayloadTooLarge = errors.New("protocol: payload exceeds the maximum size")
 )
 
-// Normalized fills Magic and Version when the caller left them zero
+// normalized fills zero Magic and Version, so encryption (AAD) and Marshal see the same header.
 func (h UDPHeader) normalized() UDPHeader {
 	if h.Magic == 0 {
 		h.Magic = Magic
@@ -49,8 +60,8 @@ func (h UDPHeader) normalized() UDPHeader {
 	return h
 }
 
-// MarshalHeaderPrefix22 đóng gói 22 bytes đầu của Header (chưa gồm 2 bytes Checksum ở cuối).
-func (h UDPHeader) MarshalHeaderPrefix22() []byte {
+// AAD returns header bytes 0..21 as AAD, with payload_len zeroed (unknown before encryption).
+func (h UDPHeader) AAD() []byte {
 	n := h.normalized()
 	n.PayloadLen = 0
 	n.Checksum = 0
@@ -61,7 +72,7 @@ func (h UDPHeader) MarshalHeaderPrefix22() []byte {
 	return out
 }
 
-// Marshal đóng gói toàn bộ UDPPacket thành mảng byte (24 bytes Header + Payload) kèm tính Checksum.
+// Marshal encodes header plus payload, setting payload_len and the CRC-16 over the whole datagram.
 func (p *UDPPacket) Marshal() ([]byte, error) {
 	if len(p.Payload) > MaxEncryptedPayload {
 		return nil, fmt.Errorf("%w: %d bytes", ErrPayloadTooLarge, len(p.Payload))
@@ -80,7 +91,7 @@ func (p *UDPPacket) Marshal() ([]byte, error) {
 	return wire, nil
 }
 
-// UnmarshalUDPPacket giải mã mảng byte nhận từ UDP Socket và kiểm tra tính hợp lệ + Checksum.
+// UnmarshalUDPPacket checks size, magic, version, length, then CRC-16, and returns a copy of the payload.
 func UnmarshalUDPPacket(raw []byte) (*UDPPacket, error) {
 	if len(raw) < HeaderSize {
 		return nil, ErrShortPacket
@@ -142,6 +153,7 @@ func decodeHeader(b []byte) UDPHeader {
 	}
 }
 
+// CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF): catches all 1- and 2-bit errors and bursts up to 16 bits.
 var crc16Table = func() [256]uint16 {
 	var t [256]uint16
 	for i := 0; i < 256; i++ {

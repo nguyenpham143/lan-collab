@@ -17,7 +17,7 @@ type PeerInfo struct {
 	UDPPort int    `json:"udp_port"`
 }
 
-// ControlMsg is the single JSON envelope used for every control-plane message.
+// ControlMsg is the one JSON shape for all control messages; unused fields are omitted.
 type ControlMsg struct {
 	Type         string     `json:"type"`
 	Version      int        `json:"version,omitempty"`
@@ -39,7 +39,7 @@ type ChatPayload struct {
 	TS   int64  `json:"ts"`
 }
 
-// FileDonePayload is the plaintext JSON carried by FILE_DONE on stream 1.
+// FileDonePayload tells the sender (on stream 1) whether the received file matched its SHA-256.
 type FileDonePayload struct {
 	StreamID uint16 `json:"stream_id"`
 	OK       bool   `json:"ok"`
@@ -53,11 +53,11 @@ var (
 	ErrMissingType   = errors.New("protocol: control message has no type")
 )
 
-// WriteControlMsg writes one frame: uint32 big-endian length N followed by N bytes of JSON.
+// WriteControlMsg writes a uint32 big-endian length plus JSON in one Write, so frames never interleave.
 func WriteControlMsg(w io.Writer, msg ControlMsg) error {
 	body, err := json.Marshal(msg)
 	if err != nil {
-		return fmt.Errorf("marshal control msg: %w", err)
+		return fmt.Errorf("protocol: encode control message: %w", err)
 	}
 	if len(body) > MaxControlFrame {
 		return ErrFrameTooLarge
@@ -70,8 +70,7 @@ func WriteControlMsg(w io.Writer, msg ControlMsg) error {
 	return err
 }
 
-// ReadControlMsg reads the 4-byte big-endian length prefix N, validates the size bound,
-// and reads the following N bytes of JSON.
+// ReadControlMsg reads one frame, checking the length before allocating so a forged prefix cannot exhaust memory.
 func ReadControlMsg(r io.Reader) (ControlMsg, error) {
 	var lenBuf [4]byte
 	if _, err := io.ReadFull(r, lenBuf[:]); err != nil {
@@ -101,7 +100,7 @@ func ReadControlMsg(r io.Reader) (ControlMsg, error) {
 	return msg, nil
 }
 
-// MarshalJSONCompact encodes v as compact single-line JSON without HTML escaping.
+// MarshalJSONCompact encodes v without HTML escaping, so '<' and '&' stay one byte each.
 func MarshalJSONCompact(v any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)

@@ -7,10 +7,10 @@ import (
 	"sync"
 )
 
-// MaxFileSize bounds one trasnfer
-const MaxFileSize int64 = 64 << 20 //64 MiB
+// MaxFileSize bounds one transfer, and so the receiver's memory per transfer.
+const MaxFileSize int64 = 64 << 20 // 64 MiB
 
-// FileInitMeta is the JSON payload of FILE_INIT (seq_num = 0)
+// FileInitMeta is the JSON payload of FILE_INIT (seq_num = 0).
 type FileInitMeta struct {
 	Filename    string `json:"filename"`
 	Size        int64  `json:"size"`
@@ -18,7 +18,7 @@ type FileInitMeta struct {
 	SHA256      string `json:"sha256"`
 }
 
-// Reassembly errors
+// Reassembly errors.
 var (
 	ErrUnknownTransfer = errors.New("protocol: chunk for a transfer without FILE_INIT")
 	ErrBadFileMeta     = errors.New("protocol: invalid FILE_INIT metadata")
@@ -28,7 +28,7 @@ var (
 	ErrHashMismatch    = errors.New("protocol: SHA-256 of reassembled file does not match FILE_INIT")
 )
 
-// ExpectedChunks returns how many chunks a file of the given size is split into
+// ExpectedChunks returns the chunk count; an empty file is one zero-length chunk so every transfer looks the same.
 func ExpectedChunks(size int64) uint32 {
 	if size <= 0 {
 		return 1
@@ -50,7 +50,7 @@ func (m FileInitMeta) checkShape() error {
 	return nil
 }
 
-// Validate checks all metadata fields, including the filename. Receivers call it before accepting a FILE_INIT
+// Validate checks all metadata fields, including the filename, before a FILE_INIT is accepted.
 func (m FileInitMeta) Validate() error {
 	if err := m.checkShape(); err != nil {
 		return err
@@ -61,7 +61,7 @@ func (m FileInitMeta) Validate() error {
 	return nil
 }
 
-// SplitFileChunks slices data into chunks of at most 1024 bytes and computes the metadata for FILE_INIT
+// SplitFileChunks cuts data into 1024-byte chunks (chunk i has seq i+1, no copy) and fills the FILE_INIT metadata.
 func SplitFileChunks(data []byte) (meta FileInitMeta, chunks [][]byte) {
 	meta.Size = int64(len(data))
 	meta.SHA256 = SHA256Hex(data)
@@ -92,7 +92,7 @@ type reasmState struct {
 	received int64
 }
 
-// FileReassembler reassembles file chunks from multiple FILE_CHUNK messages, keyed by (sender, stream).
+// FileReassembler collects chunks per (SenderID, StreamID) in any order and returns each file once its SHA-256 matches.
 type FileReassembler struct {
 	mu     sync.Mutex
 	states map[reasmKey]*reasmState
@@ -113,7 +113,7 @@ func (r *FileReassembler) AddInit(senderID, streamID uint16, meta FileInitMeta) 
 	}
 }
 
-// AddChunk adds a chunk to the reassembly state. Returns true if the file is complete.
+// AddChunk stores one chunk and, when the last one arrives, returns the verified file (any error forgets the transfer).
 func (r *FileReassembler) AddChunk(senderID, streamID uint16, seqNum uint32, data []byte) (completeData []byte, meta FileInitMeta, done bool, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
