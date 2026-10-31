@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LanCollab</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">LanCollab</span>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Offline</span>
+    </div>
+    <div class="me" id="me" hidden>
+      <span id="me-name"></span>
+      <button type="button" class="btn btn-quiet" id="logout-btn">Sign out</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="rail rail-left" aria-label="Online users">
+      <h2 class="rail-title">Online</h2>
+      <ul class="peer-list" id="peer-list"></ul>
+      <p class="empty" id="peer-empty">Sign in to see who is online.</p>
+    </aside>
+
+    <section class="center" aria-label="Conversation">
+      <form class="signin" id="signin" autocomplete="on">
+        <h1>Sign in to your LAN room</h1>
+        <p class="hint">New usernames are registered automatically the first time they sign in.</p>
+        <label>Username
+          <input id="username" name="username" autocomplete="username" maxlength="32" required>
+        </label>
+        <label>Password
+          <input id="password" name="password" type="password" autocomplete="current-password" maxlength="128" required>
+        </label>
+        <button type="submit" class="btn btn-primary" id="signin-btn">Sign in</button>
+        <p class="form-error" id="signin-error" role="alert"></p>
+        <p class="hint" id="server-hint"></p>
+      </form>
+
+      <div class="chat" id="chat" hidden>
+        <nav class="tabs" id="tabs" role="tablist" aria-label="Conversations"></nav>
+        <ol class="messages" id="messages" aria-live="polite"></ol>
+        <form class="composer" id="composer">
+          <label class="visually-hidden" for="message">Message</label>
+          <input id="message" autocomplete="off" maxlength="512" placeholder="Message everyone">
+          <input type="file" id="file-input" multiple hidden>
+          <button type="button" class="btn btn-quiet btn-icon" id="file-btn" aria-label="Attach files" disabled title="Open a conversation with one person to attach files">&#128206;</button>
+          <button type="submit" class="btn btn-primary" id="send-btn">Send</button>
+        </form>
+        <p class="form-error" id="composer-error" role="alert"></p>
+      </div>
+    </section>
+
+    <aside class="rail rail-right" aria-label="Link and transfers">
+      <section class="link" aria-labelledby="link-title">
+        <h2 class="rail-title" id="link-title">Link to server</h2>
+        <div class="rtt">
+          <span class="rtt-value" id="rtt-value">&ndash;</span>
+          <span class="rtt-unit">ms round trip</span>
+        </div>
+        <div class="window" id="window" aria-hidden="true"></div>
+        <p class="window-caption" id="window-caption">Packets in flight against the sending window.</p>
+        <dl class="link-stats">
+          <div><dt>Congestion window</dt><dd id="st-cwnd">&ndash;</dd></div>
+          <div><dt>Receive window</dt><dd id="st-rwnd">&ndash;</dd></div>
+          <div><dt>Retransmission timeout</dt><dd id="st-rto">&ndash;</dd></div>
+          <div><dt>Retransmissions</dt><dd id="st-retrans">&ndash;</dd></div>
+          <div><dt>Packets sent / acked</dt><dd id="st-packets">&ndash;</dd></div>
+        </dl>
+        <div class="loss">
+          <label for="loss-range">Simulated packet loss (demo)</label>
+          <div class="loss-row">
+            <input type="range" id="loss-range" min="0" max="95" step="5" value="0">
+            <output id="loss-out" for="loss-range">0%</output>
+          </div>
+        </div>
+      </section>
+
+      <section class="transfers" aria-labelledby="transfers-title">
+        <h2 class="rail-title" id="transfers-title">File transfers</h2>
+        <ul class="transfer-list" id="transfer-list"></ul>
+        <p class="empty" id="transfer-empty">Files you send or receive appear here.</p>
+      </section>
+    </aside>
+  </main>
+</body>
+</html>
