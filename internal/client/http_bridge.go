@@ -516,14 +516,17 @@ func writeResponseWith(conn net.Conn, status int, contentType string, body []byt
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "HTTP/1.1 %d %s\r\n", status, statusText(status))
 	if contentType != "" {
-		sb.WriteString("Content-Type: " + contentType + "\r\n")
+		sb.WriteString("Content-Type: ")
+		sb.WriteString(contentType)
+		sb.WriteString("\r\n")
 	}
 	fmt.Fprintf(&sb, "Content-Length: %d\r\n", len(body))
 	sb.WriteString("Cache-Control: no-store\r\n")
 	sb.WriteString("X-Content-Type-Options: nosniff\r\n")
 	sb.WriteString("Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:\r\n")
 	for _, h := range extra {
-		sb.WriteString(h + "\r\n")
+		sb.WriteString(h)
+		sb.WriteString("\r\n")
 	}
 	sb.WriteString("Connection: close\r\n\r\n")
 	w := bufio.NewWriter(conn)
