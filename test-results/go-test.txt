@@ -1,0 +1,190 @@
+?   	lancollab/cmd/client	[no test files]
+?   	lancollab/cmd/server	[no test files]
+?   	lancollab/cmd/simtest	[no test files]
+?   	lancollab/internal/client	[no test files]
+?   	lancollab/internal/protocol	[no test files]
+?   	lancollab/internal/server	[no test files]
+?   	lancollab/internal/transport	[no test files]
+=== RUN   TestHTTPBridgeDownloadServesImagesInlineAndFilesAsAttachments
+--- PASS: TestHTTPBridgeDownloadServesImagesInlineAndFilesAsAttachments (0.03s)
+=== RUN   TestHTTPBridgeLossEndpointValidatesRate
+--- PASS: TestHTTPBridgeLossEndpointValidatesRate (0.01s)
+=== RUN   TestServerResilienceAndHeartbeatTimeout
+[server] 2026/10/31 15:23:30.284305 control plane (TCP+TLS) on 127.0.0.1:65038, data plane (UDP) on 127.0.0.1:53440
+[server] 2026/10/31 15:23:30.284305 TLS certificate SHA-256 fingerprint: a5382b80c219c41a01809fdef554a9e6d680d3af5db9781307081aa0b1fcfce8
+[server] 2026/10/31 15:23:30.292389 "alice" signed in as #1 from 127.0.0.1:65039 (UDP port 52001)
+[server] 2026/10/31 15:23:30.301100 sign-in refused for "alice" from 127.0.0.1:65040: wrong password for this username
+[server] 2026/10/31 15:23:30.301788 #1 left: connection closed by client (EOF)
+--- PASS: TestServerResilienceAndHeartbeatTimeout (0.02s)
+=== RUN   TestAbruptDisconnectIsDetectedAndPeersNotified
+--- PASS: TestAbruptDisconnectIsDetectedAndPeersNotified (0.01s)
+=== RUN   TestHeartbeatTimeoutRemovesSilentClient
+--- PASS: TestHeartbeatTimeoutRemovesSilentClient (1.60s)
+=== RUN   TestServerSurvivesGarbageAndOversizedControlFrames
+--- PASS: TestServerSurvivesGarbageAndOversizedControlFrames (0.02s)
+=== RUN   TestDuplicateLoginAndInvalidCredentialsAreRejected
+--- PASS: TestDuplicateLoginAndInvalidCredentialsAreRejected (0.03s)
+=== RUN   TestLogoutThenSameUserCanSignInAgain
+--- PASS: TestLogoutThenSameUserCanSignInAgain (0.03s)
+=== RUN   TestConcurrentTwentyClientsEndToEnd
+[server] 2026/10/31 15:23:32.003829 control plane (TCP+TLS) on 127.0.0.1:65065, data plane (UDP) on 127.0.0.1:53451
+[server] 2026/10/31 15:23:32.004371 TLS certificate SHA-256 fingerprint: 8afbc0893f30d83d90eab4e256d825b5062dd22d1f3c291a9623520cbf159563
+[server] 2026/10/31 15:23:32.009989 "user_01" signed in as #1 from 127.0.0.1:65066 (UDP port 53452)
+[server] 2026/10/31 15:23:32.016598 "user_02" signed in as #2 from 127.0.0.1:65067 (UDP port 53453)
+[server] 2026/10/31 15:23:32.023660 "user_03" signed in as #3 from 127.0.0.1:65068 (UDP port 53454)
+[server] 2026/10/31 15:23:32.031193 "user_04" signed in as #4 from 127.0.0.1:65069 (UDP port 53455)
+[server] 2026/10/31 15:23:32.038271 "user_05" signed in as #5 from 127.0.0.1:65070 (UDP port 53456)
+[server] 2026/10/31 15:23:32.046852 "user_06" signed in as #6 from 127.0.0.1:65071 (UDP port 53457)
+[server] 2026/10/31 15:23:32.055772 "user_07" signed in as #7 from 127.0.0.1:65072 (UDP port 53458)
+[server] 2026/10/31 15:23:32.062573 "user_08" signed in as #8 from 127.0.0.1:65073 (UDP port 53459)
+[server] 2026/10/31 15:23:32.069970 "user_09" signed in as #9 from 127.0.0.1:65074 (UDP port 53460)
+[server] 2026/10/31 15:23:32.078200 "user_10" signed in as #10 from 127.0.0.1:65075 (UDP port 53461)
+[server] 2026/10/31 15:23:32.084796 "user_11" signed in as #11 from 127.0.0.1:65076 (UDP port 53462)
+[server] 2026/10/31 15:23:32.093325 "user_12" signed in as #12 from 127.0.0.1:65077 (UDP port 53463)
+[server] 2026/10/31 15:23:32.102433 "user_13" signed in as #13 from 127.0.0.1:65078 (UDP port 53464)
+[server] 2026/10/31 15:23:32.110404 "user_14" signed in as #14 from 127.0.0.1:65079 (UDP port 53465)
+[server] 2026/10/31 15:23:32.120048 "user_15" signed in as #15 from 127.0.0.1:65080 (UDP port 53466)
+[server] 2026/10/31 15:23:32.128085 "user_16" signed in as #16 from 127.0.0.1:65081 (UDP port 53467)
+[server] 2026/10/31 15:23:32.137787 "user_17" signed in as #17 from 127.0.0.1:65082 (UDP port 53468)
+[server] 2026/10/31 15:23:32.146564 "user_18" signed in as #18 from 127.0.0.1:65083 (UDP port 53469)
+[server] 2026/10/31 15:23:32.155329 "user_19" signed in as #19 from 127.0.0.1:65084 (UDP port 53470)
+[server] 2026/10/31 15:23:32.164324 "user_20" signed in as #20 from 127.0.0.1:65085 (UDP port 53471)
+[server] 2026/10/31 15:23:32.182153 #20 left: signed out
+[server] 2026/10/31 15:23:32.183201 #19 left: signed out
+[server] 2026/10/31 15:23:32.187425 #18 left: signed out
+[server] 2026/10/31 15:23:32.189004 #17 left: signed out
+[server] 2026/10/31 15:23:32.191087 #16 left: signed out
+[server] 2026/10/31 15:23:32.194096 #15 left: signed out
+[server] 2026/10/31 15:23:32.195149 #14 left: signed out
+[server] 2026/10/31 15:23:32.196283 #13 left: signed out
+[server] 2026/10/31 15:23:32.197532 #12 left: signed out
+[server] 2026/10/31 15:23:32.200135 #11 left: signed out
+[server] 2026/10/31 15:23:32.201360 #10 left: signed out
+[server] 2026/10/31 15:23:32.201908 #9 left: signed out
+[server] 2026/10/31 15:23:32.202448 #8 left: signed out
+[server] 2026/10/31 15:23:32.203509 #7 left: signed out
+[server] 2026/10/31 15:23:32.204040 #6 left: signed out
+[server] 2026/10/31 15:23:32.204580 #5 left: signed out
+[server] 2026/10/31 15:23:32.205125 #4 left: signed out
+[server] 2026/10/31 15:23:32.206892 #3 left: signed out
+[server] 2026/10/31 15:23:32.207497 #2 left: signed out
+[server] 2026/10/31 15:23:32.208022 #1 left: signed out
+--- PASS: TestConcurrentTwentyClientsEndToEnd (0.21s)
+=== RUN   TestDirectMessageReachesOnlyTarget
+--- PASS: TestDirectMessageReachesOnlyTarget (0.04s)
+=== RUN   TestLargeFileUnderLossIsByteExactAndChatOvertakesIt
+--- PASS: TestLargeFileUnderLossIsByteExactAndChatOvertakesIt (0.74s)
+=== RUN   TestTwentyClientsMeshUnderPacketLoss
+--- PASS: TestTwentyClientsMeshUnderPacketLoss (0.44s)
+=== RUN   TestFileInitArrivingAfterSenderLeftFailsAtOnce
+--- PASS: TestFileInitArrivingAfterSenderLeftFailsAtOnce (0.26s)
+=== RUN   TestStalledIncomingTransferTimesOut
+    late_file_init_test.go:99: bob gave up 2s after alice's link died: no data received for 1s
+--- PASS: TestStalledIncomingTransferTimesOut (2.02s)
+=== RUN   TestSlowButSteadyTransferDoesNotTimeOut
+--- PASS: TestSlowButSteadyTransferDoesNotTimeOut (7.70s)
+=== RUN   TestControlFraming
+=== RUN   TestControlFraming/single_frame_round-trip
+=== RUN   TestControlFraming/multiple_sequential_frames_in_one_stream
+=== RUN   TestControlFraming/boundary_limits_on_read_and_write
+=== RUN   TestControlFraming/rejects_malformed_and_oversized_frames
+=== RUN   TestControlFraming/rejects_malformed_and_oversized_frames/length_one_over_limit_(65537B)
+=== RUN   TestControlFraming/rejects_malformed_and_oversized_frames/length_128_KiB_(131072B)
+=== RUN   TestControlFraming/rejects_malformed_and_oversized_frames/length_4_GiB
+=== RUN   TestControlFraming/rejects_malformed_and_oversized_frames/zero_length
+=== RUN   TestControlFraming/rejects_malformed_and_oversized_frames/invalid_JSON
+=== RUN   TestControlFraming/rejects_malformed_and_oversized_frames/JSON_without_type
+=== RUN   TestControlFraming/rejects_malformed_and_oversized_frames/truncated_body
+=== RUN   TestControlFraming/rejects_malformed_and_oversized_frames/empty_input
+--- PASS: TestControlFraming (0.00s)
+    --- PASS: TestControlFraming/single_frame_round-trip (0.00s)
+    --- PASS: TestControlFraming/multiple_sequential_frames_in_one_stream (0.00s)
+    --- PASS: TestControlFraming/boundary_limits_on_read_and_write (0.00s)
+    --- PASS: TestControlFraming/rejects_malformed_and_oversized_frames (0.00s)
+        --- PASS: TestControlFraming/rejects_malformed_and_oversized_frames/length_one_over_limit_(65537B) (0.00s)
+        --- PASS: TestControlFraming/rejects_malformed_and_oversized_frames/length_128_KiB_(131072B) (0.00s)
+        --- PASS: TestControlFraming/rejects_malformed_and_oversized_frames/length_4_GiB (0.00s)
+        --- PASS: TestControlFraming/rejects_malformed_and_oversized_frames/zero_length (0.00s)
+        --- PASS: TestControlFraming/rejects_malformed_and_oversized_frames/invalid_JSON (0.00s)
+        --- PASS: TestControlFraming/rejects_malformed_and_oversized_frames/JSON_without_type (0.00s)
+        --- PASS: TestControlFraming/rejects_malformed_and_oversized_frames/truncated_body (0.00s)
+        --- PASS: TestControlFraming/rejects_malformed_and_oversized_frames/empty_input (0.00s)
+=== RUN   TestUDPPacketAndCRC16
+=== RUN   TestUDPPacketAndCRC16/CRC-16/CCITT-FALSE_standard_reference_vector
+=== RUN   TestUDPPacketAndCRC16/marshal,_unmarshal,_magic_validation,_and_header_bit_flip
+=== RUN   TestUDPPacketAndCRC16/exhaustive_single-bit_flip_rejection_across_entire_datagram
+=== RUN   TestUDPPacketAndCRC16/MTU_size_bounds,_short_packets,_and_random_garbage_fuzzing
+--- PASS: TestUDPPacketAndCRC16 (0.08s)
+    --- PASS: TestUDPPacketAndCRC16/CRC-16/CCITT-FALSE_standard_reference_vector (0.00s)
+    --- PASS: TestUDPPacketAndCRC16/marshal,_unmarshal,_magic_validation,_and_header_bit_flip (0.00s)
+    --- PASS: TestUDPPacketAndCRC16/exhaustive_single-bit_flip_rejection_across_entire_datagram (0.03s)
+    --- PASS: TestUDPPacketAndCRC16/MTU_size_bounds,_short_packets,_and_random_garbage_fuzzing (0.05s)
+=== RUN   TestAESGCMAuthentication
+=== RUN   TestAESGCMAuthentication/valid_decryption_and_random_nonce_uniqueness
+=== RUN   TestAESGCMAuthentication/AAD_rejects_modified_header_fields_even_with_valid_CRC
+=== RUN   TestAESGCMAuthentication/rejects_tampered_ciphertext
+=== RUN   TestAESGCMAuthentication/rejects_invalid_keys,_short_ciphertexts,_and_oversized_plaintexts
+--- PASS: TestAESGCMAuthentication (0.00s)
+    --- PASS: TestAESGCMAuthentication/valid_decryption_and_random_nonce_uniqueness (0.00s)
+    --- PASS: TestAESGCMAuthentication/AAD_rejects_modified_header_fields_even_with_valid_CRC (0.00s)
+    --- PASS: TestAESGCMAuthentication/rejects_tampered_ciphertext (0.00s)
+    --- PASS: TestAESGCMAuthentication/rejects_invalid_keys,_short_ciphertexts,_and_oversized_plaintexts (0.00s)
+=== RUN   TestFileChunkerAndReassembler
+=== RUN   TestFileChunkerAndReassembler/chunk_splitting_across_boundary_sizes
+=== RUN   TestFileChunkerAndReassembler/out-of-order_reassembly
+=== RUN   TestFileChunkerAndReassembler/empty_file_reassembly
+=== RUN   TestFileChunkerAndReassembler/concurrent_transfers_from_different_senders_with_same_stream_ID
+=== RUN   TestFileChunkerAndReassembler/hash_mismatch_on_corrupted_chunk
+=== RUN   TestFileChunkerAndReassembler/chunk_without_init
+=== RUN   TestFileChunkerAndReassembler/inconsistent_chunk_count_in_metadata
+=== RUN   TestFileChunkerAndReassembler/sequence_number_out_of_range
+=== RUN   TestFileChunkerAndReassembler/oversized_chunk_payload
+--- PASS: TestFileChunkerAndReassembler (0.00s)
+    --- PASS: TestFileChunkerAndReassembler/chunk_splitting_across_boundary_sizes (0.00s)
+    --- PASS: TestFileChunkerAndReassembler/out-of-order_reassembly (0.00s)
+    --- PASS: TestFileChunkerAndReassembler/empty_file_reassembly (0.00s)
+    --- PASS: TestFileChunkerAndReassembler/concurrent_transfers_from_different_senders_with_same_stream_ID (0.00s)
+    --- PASS: TestFileChunkerAndReassembler/hash_mismatch_on_corrupted_chunk (0.00s)
+    --- PASS: TestFileChunkerAndReassembler/chunk_without_init (0.00s)
+    --- PASS: TestFileChunkerAndReassembler/inconsistent_chunk_count_in_metadata (0.00s)
+    --- PASS: TestFileChunkerAndReassembler/sequence_number_out_of_range (0.00s)
+    --- PASS: TestFileChunkerAndReassembler/oversized_chunk_payload (0.00s)
+=== RUN   TestHandWrittenHTTPBridgeServesUIAndAPI
+--- PASS: TestHandWrittenHTTPBridgeServesUIAndAPI (0.00s)
+=== RUN   TestHTTPBridgeRoutingAndSecurityChecks
+--- PASS: TestHTTPBridgeRoutingAndSecurityChecks (0.01s)
+=== RUN   TestHTTPBridgeStreamsServerSentEvents
+--- PASS: TestHTTPBridgeStreamsServerSentEvents (0.00s)
+=== RUN   TestRTTEstimatorAndKarnsRule
+--- PASS: TestRTTEstimatorAndKarnsRule (0.00s)
+=== RUN   TestRTTEstimatorClampsAndRecovers
+--- PASS: TestRTTEstimatorClampsAndRecovers (0.00s)
+=== RUN   TestCubicCongestionAndFlowControlWindow
+--- PASS: TestCubicCongestionAndFlowControlWindow (0.00s)
+=== RUN   TestCubicStaysBoundedAndNeverStalls
+--- PASS: TestCubicStaysBoundedAndNeverStalls (0.00s)
+=== RUN   TestRDTSelectiveRepeatAndHoLFree
+--- PASS: TestRDTSelectiveRepeatAndHoLFree (0.01s)
+=== RUN   TestRDTChatOvertakesStalledFileStream
+--- PASS: TestRDTChatOvertakesStalledFileStream (0.16s)
+=== RUN   TestRDTRetransmitsOnlyTheLostPacket
+--- PASS: TestRDTRetransmitsOnlyTheLostPacket (0.00s)
+=== RUN   TestRDTDropsCorruptedAndForeignDatagramsAndSuppressesDuplicates
+--- PASS: TestRDTDropsCorruptedAndForeignDatagramsAndSuppressesDuplicates (0.46s)
+=== RUN   TestRDTSlowConsumerBackPressureLosesNothing
+--- PASS: TestRDTSlowConsumerBackPressureLosesNothing (0.35s)
+=== RUN   TestRDTFastRetransmitKeepsLossyTransferFast
+    rdt_loss_test.go:565: 2 MB at 5% loss took 1s (105 retransmissions)
+--- PASS: TestRDTFastRetransmitKeepsLossyTransferFast (1.00s)
+=== RUN   TestSenderLeavesMidTransferFailsReceiverSide
+--- PASS: TestSenderLeavesMidTransferFailsReceiverSide (0.06s)
+=== RUN   TestPeerLeavingFailsTransferAwaitingConfirmation
+--- PASS: TestPeerLeavingFailsTransferAwaitingConfirmation (0.04s)
+=== RUN   TestRelayOverflowFailsOnlyTheOverflowingTransfer
+--- PASS: TestRelayOverflowFailsOnlyTheOverflowingTransfer (0.09s)
+=== RUN   TestReceiverLeavesMidTransferFailsSender
+--- PASS: TestReceiverLeavesMidTransferFailsSender (0.06s)
+=== RUN   TestSlowRecipientDoesNotStallOthers
+--- PASS: TestSlowRecipientDoesNotStallOthers (0.58s)
+PASS
+ok  	lancollab/tests	18.335s

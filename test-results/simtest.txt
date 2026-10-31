@@ -1,0 +1,26 @@
+Simulating 20 clients, 10% UDP loss on every endpoint, 20480-byte files
+client  id  chats  file sent  file received  retrans  RTT (ms)  cwnd  note
+sim_01  2   19/19  verified   verified       7        6.08      3     
+sim_02  10  19/19  verified   verified       4        5.49      4     
+sim_03  19  19/19  verified   verified       3        5.62      6     
+sim_04  20  19/19  verified   verified       13       2.29      2     
+sim_05  11  19/19  verified   verified       9        2.53      4     
+sim_06  16  19/19  verified   verified       8        3.54      6     
+sim_07  15  19/19  verified   verified       6        6.13      7     
+sim_08  1   19/19  verified   verified       6        7.10      5     
+sim_09  5   19/19  verified   verified       3        6.56      6     
+sim_10  3   19/19  verified   verified       5        6.31      4     
+sim_11  4   19/19  verified   verified       7        7.43      4     
+sim_12  8   19/19  verified   verified       5        6.95      7     
+sim_13  7   19/19  verified   verified       2        6.50      7     
+sim_14  13  19/19  verified   verified       6        7.08      6     
+sim_15  14  19/19  verified   verified       7        4.92      3     
+sim_16  12  19/19  verified   verified       2        6.22      7     
+sim_17  18  19/19  verified   verified       3        6.79      7     
+sim_18  17  19/19  verified   verified       3        5.06      5     
+sim_19  9   19/19  verified   verified       6        6.08      5     
+sim_20  6   19/19  verified   verified       6        6.23      5     
+
+Sign-in of 20 clients: 20ms
+All chats and files delivered in: 376ms
+RESULT: PASS
