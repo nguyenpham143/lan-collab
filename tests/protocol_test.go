@@ -1,14 +1,19 @@
 package tests
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
 	"math/rand"
+	"net"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"lancollab/internal/client"
 	"lancollab/internal/protocol"
 )
 
@@ -448,4 +453,139 @@ func TestFileChunkerAndReassembler(t *testing.T) {
 			t.Fatalf("expected ErrChunkTooLarge, got %v", err)
 		}
 	})
+}
+
+// --- Task 5: the hand-written HTTP/1.1 bridge ---
+
+func TestHandWrittenHTTPBridgeServesUIAndAPI(t *testing.T) {
+	ctrl := client.NewController("127.0.0.1", 9000, 9001)
+	bridge, err := client.StartHTTPBridge("127.0.0.1:0", ctrl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bridge.Close()
+
+	conn, err := net.Dial("tcp", bridge.Addr())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	_, _ = conn.Write([]byte("GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"))
+	raw, err := io.ReadAll(conn)
+	if err != nil || !strings.Contains(string(raw), "200 OK") || !strings.Contains(string(raw), "<html") {
+		t.Fatalf("expected 200 OK HTML response from hand-written HTTP bridge, got: %s", string(raw))
+	}
+}
+
+// rawHTTP sends one hand-built request and returns the whole response.
+func rawHTTP(t *testing.T, addr, request string) string {
+	t.Helper()
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
+	if _, err := conn.Write([]byte(request)); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := io.ReadAll(conn)
+	if err != nil {
+		t.Fatalf("reading the response: %v (got %q)", err, raw)
+	}
+	return string(raw)
+}
+
+func TestHTTPBridgeRoutingAndSecurityChecks(t *testing.T) {
+	ctrl := client.NewController("127.0.0.1", 9000, 9001)
+	bridge, err := client.StartHTTPBridge("127.0.0.1:0", ctrl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bridge.Close()
+	addr := bridge.Addr()
+
+	get := func(path, host string) string {
+		return rawHTTP(t, addr, "GET "+path+" HTTP/1.1\r\nHost: "+host+"\r\nConnection: close\r\n\r\n")
+	}
+	post := func(path, extraHeaders, body string) string {
+		return rawHTTP(t, addr, "POST "+path+" HTTP/1.1\r\nHost: "+addr+"\r\n"+extraHeaders+
+			"Content-Type: application/json\r\nContent-Length: "+strconv.Itoa(len(body))+"\r\n\r\n"+body)
+	}
+	mustContain := func(what, resp string, parts ...string) {
+		t.Helper()
+		for _, p := range parts {
+			if !strings.Contains(resp, p) {
+				t.Fatalf("%s: response does not contain %q:\n%s", what, p, resp)
+			}
+		}
+	}
+
+	mustContain("app.js", get("/app.js", addr), "200 OK", "text/javascript")
+	mustContain("style.css", get("/style.css", addr), "200 OK", "text/css")
+	mustContain("state", get("/api/state", addr), "200 OK", `"state":"DISCONNECTED"`)
+	mustContain("unknown path", get("/missing", addr), "404 Not Found")
+
+	// DNS-rebinding defence: a loopback bridge only answers loopback Host headers.
+	mustContain("foreign Host", get("/", "evil.example.com"), "403 Forbidden")
+
+	mustContain("PUT", rawHTTP(t, addr, "PUT /api/chat HTTP/1.1\r\nHost: "+addr+"\r\n\r\n"), "405 Method Not Allowed")
+	mustContain("garbage request line", rawHTTP(t, addr, "BOGUS\r\n\r\n"), "400 Bad Request")
+
+	// Signed out: the API reports a clear error instead of crashing.
+	mustContain("chat while signed out", post("/api/chat", "", `{"target_id":65535,"text":"hi"}`), "400 Bad Request", "not signed in")
+	mustContain("broken JSON", post("/api/login", "", `{not json`), "400 Bad Request")
+
+	// Cross-site request defence on state-changing calls.
+	mustContain("foreign Origin", post("/api/chat", "Origin: http://evil.example\r\n", `{"target_id":65535,"text":"hi"}`), "403 Forbidden")
+	same := post("/api/chat", "Origin: http://"+addr+"\r\n", `{"target_id":65535,"text":"hi"}`)
+	mustContain("same Origin", same, "not signed in")
+	if strings.Contains(same, "403") {
+		t.Fatalf("a same-origin request must not be refused: %s", same)
+	}
+
+	// A declared body far larger than the limit is refused before it is read.
+	big := rawHTTP(t, addr, "POST /api/file HTTP/1.1\r\nHost: "+addr+"\r\nContent-Length: 999999999\r\n\r\n")
+	mustContain("oversized body", big, "413 Payload Too Large")
+}
+
+func TestHTTPBridgeStreamsServerSentEvents(t *testing.T) {
+	ctrl := client.NewController("127.0.0.1", 9000, 9001)
+	bridge, err := client.StartHTTPBridge("127.0.0.1:0", ctrl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bridge.Close()
+
+	conn, err := net.Dial("tcp", bridge.Addr())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
+	if _, err := conn.Write([]byte("GET /events HTTP/1.1\r\nHost: " + bridge.Addr() + "\r\n\r\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	br := bufio.NewReader(conn)
+	var head strings.Builder
+	var data string
+	for data == "" {
+		line, err := br.ReadString('\n')
+		if err != nil {
+			t.Fatalf("stream ended before the first event: %v (head so far: %q)", err, head.String())
+		}
+		if strings.HasPrefix(line, "data:") {
+			data = line
+			break
+		}
+		head.WriteString(line)
+	}
+	if !strings.Contains(head.String(), "text/event-stream") {
+		t.Fatalf("missing event-stream content type in:\n%s", head.String())
+	}
+	if !strings.Contains(data, `"kind":"state"`) || !strings.Contains(data, "DISCONNECTED") {
+		t.Fatalf("the first event must replay the current state, got %q", data)
+	}
 }
