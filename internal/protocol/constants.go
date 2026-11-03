@@ -71,14 +71,14 @@ const (
 const (
 	InitialCwnd     = 4.0  // packets
 	InitialSsthresh = 16.0 // packets
-	MaxCwnd         = 64   // packets, upper bound of cwnd
-	RecvWindow      = 64   // packets buffered per receive stream; rwnd is advertised in 0..64
+	MaxCwnd         = 255  // packets, upper bound of cwnd
+	RecvWindow      = 255  // packets buffered per receive stream; rwnd is advertised in 0..64
 
 	HeartbeatInterval = 3 * time.Second
 	SessionTimeout    = 10 * time.Second
 
 	InitialRTO = 200 * time.Millisecond
-	MinRTO     = 50 * time.Millisecond
+	MinRTO     = 20 * time.Millisecond
 	MaxRTO     = 2000 * time.Millisecond
 )
 

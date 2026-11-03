@@ -27,10 +27,13 @@ const fastRetransmitThreshold = 3
 // chatReserve lets stream 1 exceed cwnd by a few slots, so chat never waits behind file chunks.
 const chatReserve = 4
 
+// udpSocketBuffer is the OS send and receive buffer size requested for the UDP socket.
+const udpSocketBuffer = 4 << 20
+
 const (
-	retransmitTick    = 20 * time.Millisecond // how often unacknowledged packets are checked
-	gcInterval        = time.Second           // how often idle stream state is collected
-	streamIdleTimeout = 60 * time.Second      // idle file streams are forgotten after this
+	retransmitTick    = 5 * time.Millisecond // how often unacknowledged packets are checked
+	gcInterval        = time.Second          // how often idle stream state is collected
+	streamIdleTimeout = 60 * time.Second     // idle file streams are forgotten after this
 )
 
 // RDTStats is a snapshot of the reliable-transport state toward one peer.
@@ -156,6 +159,9 @@ type RDTEndpoint struct {
 
 // NewRDTEndpoint starts the receive, timer and two delivery goroutines; the endpoint owns conn.
 func NewRDTEndpoint(conn *net.UDPConn, keyResolver KeyResolver) *RDTEndpoint {
+	// Large OS buffers absorb bursts of a full window; a failure only means the OS default is kept.
+	_ = conn.SetReadBuffer(udpSocketBuffer)
+	_ = conn.SetWriteBuffer(udpSocketBuffer)
 	e := &RDTEndpoint{
 		conn:        conn,
 		keyResolver: keyResolver,
