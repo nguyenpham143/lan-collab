@@ -7,8 +7,6 @@
 
 > **Academic Project — Computer Networks (CO3094), Semester 261**  
 > **Faculty of Computer Science and Engineering — Ho Chi Minh City University of Technology (HCMUT - VNU-HCM)**  
-> **Instructor:** Mr. Vu Thanh Tai  
-> **Group 7 (CC02)**  
 
 ---
 
@@ -316,26 +314,7 @@ lan-collab/
 └── README.md                    # Project documentation
 ```
 
----
-
-## 8. Rubric Compliance (10 / 10 Points)
-
-| Step | Rubric Requirement | Implementation Location | Verified Status |
-| :---: | :--- | :--- | :---: |
-| **1** | Protocol Design (Packet headers, message types, state machine) | `internal/protocol/`, `docs/design/system-design-v1.0.md` | Full Mark (1.0/1.0) |
-| **2** | Basic Client-Server Handshake (`HELLO` / `HELLO_ACK`) | `cmd/server/`, `internal/client/controller.go` | Full Mark (1.0/1.0) |
-| **3** | Authentication & State Management (Active peer directory) | `internal/server/session_mgr.go` | Full Mark (1.0/1.0) |
-| **4** | Concurrency Implementation (Goroutines, channels, thread-safety) | `server.handleConn`, `router.go`, `tests/concurrency_test.go` | Full Mark (1.0/1.0) |
-| **5** | Time-Sensitive Streaming & Hop-by-Hop Routing (No HoL Blocking) | `internal/server/router.go`, `internal/transport/rdt_udp.go` | Full Mark (1.0/1.0) |
-| **6** | Reliable File Transfer over UDP (Chunking, SR, SHA-256 verification) | `internal/protocol/file_chunker.go`, `internal/transport/rdt_recv.go` | Full Mark (1.0/1.0) |
-| **7** | Network Resilience & Error Handling (Heartbeat, graceful disconnects) | `internal/transport/rtt.go`, `internal/server/session_mgr.go` | Full Mark (1.0/1.0) |
-| **8** | Security Layer (TLS 1.3 control + AES-256-GCM data encryption) | `internal/protocol/crypto.go`, `internal/transport/tls_control.go` | Full Mark (1.0/1.0) |
-| **9** | Zero-Dependency Web UI (HTML/CSS/Vanilla JS via custom HTTP engine) | `internal/client/http_bridge.go`, `internal/client/static/` | Full Mark (1.0/1.0) |
-| **10** | Testing & Code Quality (Race-free, 20-client network simulation) | `tests/`, `cmd/simtest/main.go`, `test-results/` | Full Mark (1.0/1.0) |
-
----
-
-## 9. Contributors
+## 8. Contributors
 
 **Computer Networks (CO3094) — Assignment 1 (Group 7, Class CC02)**  
 Faculty of Computer Science and Engineering, HCMUT - VNU-HCM.
@@ -348,6 +327,6 @@ Faculty of Computer Science and Engineering, HCMUT - VNU-HCM.
 
 ---
 
-## 10. License
+## 9. License
 
-This project is licensed under the [MIT License](LICENSE) — Copyright (c) 2026 Pham Vu Khoi Nguyen (`nguyenpham143`).
+This project is licensed under the [MIT License](LICENSE) — Copyright (c) 2026 nguyenpham143.
